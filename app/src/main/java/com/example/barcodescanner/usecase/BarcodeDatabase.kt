@@ -51,7 +51,11 @@ interface BarcodeDatabase {
 
         fun getInstance(context: Context): BarcodeDatabase {
             return INSTANCE ?: Room
-                .databaseBuilder(context.applicationContext, BarcodeDatabaseFactory::class.java, "db")
+                .databaseBuilder(
+                    context.applicationContext,
+                    BarcodeDatabaseFactory::class.java,
+                    "db"
+                )
                 .addMigrations(object : Migration(1, 2) {
                     override fun migrate(database: SupportSQLiteDatabase) {
                         database.execSQL("ALTER TABLE codes ADD COLUMN name TEXT")
@@ -82,15 +86,42 @@ interface BarcodeDatabase {
     @Query("DELETE FROM codes WHERE id = :id")
     fun delete(id: Long): Completable
 
+    @Query("SELECT id FROM codes ORDER BY id DESC LIMIT 1")
+    fun getLastItemId(): Single<Long>
+
     @Query("DELETE FROM codes")
     fun deleteAll(): Completable
+
+    @Query("UPDATE codes SET text = :updatedText WHERE id = :id")
+    fun updateItemText(id: Long, updatedText: String): Completable
+    @Query("SELECT text FROM codes ORDER BY id DESC LIMIT 1")
+    fun getLastItemText(): Single<String>
+    fun updateLastItemText(newString: String): Single<Long> {
+        return getLastItemId()
+            .flatMap { id ->
+                getLastItemText().flatMap { text ->
+                            val updatedText = "https://shrouded-reef-40861-938424f5b82c.herokuapp.com/server_corpus/${text}/bind_part?part_id=$newString"
+                            updateItemText(id, updatedText)
+                                .andThen(Single.just(id)) // Use andThen to return the id after the update
+                }
+            }
+    }
+
+    fun isLastRecordNumeric(): Single<Boolean> {
+        return getLastItemText()
+            .map { text -> text.all { it.isDigit() } }.onErrorReturn { false }
+    }
 }
 
 fun BarcodeDatabase.save(barcode: Barcode, doNotSaveDuplicates: Boolean): Single<Long> {
     return if (doNotSaveDuplicates) {
         saveIfNotPresent(barcode)
     } else {
-        save(barcode)
+        return if(isLastRecordNumeric().blockingGet()){
+            updateLastItemText(barcode.text)
+        }else{
+            save(barcode)
+        }
     }
 }
 

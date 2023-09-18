@@ -5,6 +5,7 @@
     package="com.example.barcodescanner"
     >
 
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!--Normal permissions-->
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>

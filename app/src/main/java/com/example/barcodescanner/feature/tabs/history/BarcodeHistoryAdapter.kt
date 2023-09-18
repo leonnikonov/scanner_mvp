@@ -1,6 +1,8 @@
 package com.example.barcodescanner.feature.tabs.history
 
 import android.graphics.drawable.GradientDrawable
+import android.os.StrictMode
+import android.os.StrictMode.ThreadPolicy
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,9 +17,19 @@ import com.example.barcodescanner.extension.toColorId
 import com.example.barcodescanner.extension.toImageId
 import com.example.barcodescanner.extension.toStringId
 import com.example.barcodescanner.model.Barcode
-import kotlinx.android.synthetic.main.item_barcode_history.view.*
+import kotlinx.android.synthetic.main.item_barcode_history.view.delimiter
+import kotlinx.android.synthetic.main.item_barcode_history.view.image_view_favorite
+import kotlinx.android.synthetic.main.item_barcode_history.view.image_view_schema
+import kotlinx.android.synthetic.main.item_barcode_history.view.layout_image
+import kotlinx.android.synthetic.main.item_barcode_history.view.text_view_date
+import kotlinx.android.synthetic.main.item_barcode_history.view.text_view_format
+import kotlinx.android.synthetic.main.item_barcode_history.view.text_view_text
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
+
 
 class BarcodeHistoryAdapter(private val listener: Listener) : PagedListAdapter<Barcode, BarcodeHistoryAdapter.ViewHolder>(DiffUtilCallback) {
 
@@ -61,7 +73,7 @@ class BarcodeHistoryAdapter(private val listener: Listener) : PagedListAdapter<B
         }
 
         private fun showText(barcode: Barcode) {
-            itemView.text_view_text.text = barcode.name ?: barcode.formattedText
+            itemView.text_view_text.text = barcode.text
         }
 
         private fun showImage(barcode: Barcode) {
@@ -86,7 +98,18 @@ class BarcodeHistoryAdapter(private val listener: Listener) : PagedListAdapter<B
 
         private fun setClickListener(barcode: Barcode) {
             itemView.setOnClickListener {
-                listener.onBarcodeClicked(barcode)
+                // Code to send request
+                val client = OkHttpClient()
+                val policy = ThreadPolicy.Builder().permitAll().build()
+
+                StrictMode.setThreadPolicy(policy)
+                val request = Request.Builder()
+                    .url(barcode.text)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                }
             }
         }
     }
